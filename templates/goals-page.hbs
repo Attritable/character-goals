@@ -1,0 +1,197 @@
+<section class="tab {{tab.cssClass}} character-goals-page" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+  <header class="character-goals-header">
+    <h3>{{labels.title}}</h3>
+    {{#if canAddGoal}}
+    <button type="button" class="character-goals-add" data-cg-action="addGoal">
+      <i class="fas fa-plus"></i> {{labels.addGoal}}
+    </button>
+    {{/if}}
+  </header>
+
+  {{#if empty}}
+  <p class="character-goals-empty hint">{{labels.empty}}</p>
+  {{else}}
+  <ol class="character-goals-list">
+    {{#each goals}}
+    <li class="character-goals-node character-goals-goal" data-node-id="{{this.id}}" data-node-kind="goal" data-node-text="{{this.text}}" data-visible-to-all="{{this.visibleToAll}}">
+      <div class="character-goals-row">
+        <span class="character-goals-approval {{#if this.isApproved}}approved{{else if this.isRejected}}rejected{{else}}pending{{/if}}"
+              data-tooltip="{{#if this.isRejected}}{{this.rejectReason}}{{else if this.isApproved}}{{../labels.approved}}{{else}}{{../labels.pending}}{{/if}}"
+              title="{{#if this.isRejected}}{{this.rejectReason}}{{else if this.isApproved}}{{../labels.approved}}{{else}}{{../labels.pending}}{{/if}}">
+          {{#if this.isApproved}}<i class="fas fa-check"></i>{{else if this.isRejected}}<i class="fas fa-exclamation"></i>{{else}}<i class="fas fa-clock"></i>{{/if}}
+        </span>
+        <span class="character-goals-text">{{this.text}}</span>
+        <span class="character-goals-actions">
+          {{#if this.canToggleVisibility}}
+          <button type="button" data-cg-action="toggleVisibility" data-node-id="{{this.id}}"
+                  data-tooltip="{{#if this.visibleToAll}}{{../labels.visibleToAll}}{{else}}{{../labels.hiddenToOthers}}{{/if}}"
+                  title="{{#if this.visibleToAll}}{{../labels.visibleToAll}}{{else}}{{../labels.hiddenToOthers}}{{/if}}">
+            {{#if this.visibleToAll}}<i class="fas fa-eye"></i>{{else}}<i class="fas fa-eye-slash"></i>{{/if}}
+          </button>
+          {{/if}}
+          {{#if this.canApprove}}
+          <button type="button" data-cg-action="approve" data-node-id="{{this.id}}" data-tooltip="{{../labels.approve}}" title="{{../labels.approve}}"><i class="fas fa-check"></i></button>
+          <button type="button" data-cg-action="reject" data-node-id="{{this.id}}" data-tooltip="{{../labels.reject}}" title="{{../labels.reject}}"><i class="fas fa-exclamation"></i></button>
+          {{/if}}
+          {{#if this.canEdit}}
+          <button type="button" data-cg-action="edit" data-node-id="{{this.id}}" data-tooltip="{{../labels.edit}}" title="{{../labels.edit}}"><i class="fas fa-pen"></i></button>
+          {{/if}}
+          {{#if this.canDelete}}
+          <button type="button" data-cg-action="delete" data-node-id="{{this.id}}" data-tooltip="{{../labels.delete}}" title="{{../labels.delete}}"><i class="fas fa-trash"></i></button>
+          {{/if}}
+        </span>
+      </div>
+
+      <ol class="character-goals-children">
+        {{#each this.shortGoals}}
+        <li class="character-goals-node character-goals-short" data-node-id="{{this.id}}" data-node-kind="shortGoal" data-node-text="{{this.text}}" data-visible-to-all="{{this.visibleToAll}}">
+          <div class="character-goals-row">
+            <span class="character-goals-approval {{#if this.isApproved}}approved{{else if this.isRejected}}rejected{{else}}pending{{/if}}"
+                  data-tooltip="{{#if this.isRejected}}{{this.rejectReason}}{{else if this.isApproved}}{{../../labels.approved}}{{else}}{{../../labels.pending}}{{/if}}"
+                  title="{{#if this.isRejected}}{{this.rejectReason}}{{else if this.isApproved}}{{../../labels.approved}}{{else}}{{../../labels.pending}}{{/if}}">
+              {{#if this.isApproved}}<i class="fas fa-check"></i>{{else if this.isRejected}}<i class="fas fa-exclamation"></i>{{else}}<i class="fas fa-clock"></i>{{/if}}
+            </span>
+            <span class="character-goals-text">{{this.text}}</span>
+            <span class="character-goals-actions">
+              {{#if this.canToggleVisibility}}
+              <button type="button" data-cg-action="toggleVisibility" data-node-id="{{this.id}}"
+                      data-tooltip="{{#if this.visibleToAll}}{{../../labels.visibleToAll}}{{else}}{{../../labels.hiddenToOthers}}{{/if}}"
+                      title="{{#if this.visibleToAll}}{{../../labels.visibleToAll}}{{else}}{{../../labels.hiddenToOthers}}{{/if}}">
+                {{#if this.visibleToAll}}<i class="fas fa-eye"></i>{{else}}<i class="fas fa-eye-slash"></i>{{/if}}
+              </button>
+              {{/if}}
+              {{#if this.canApprove}}
+              <button type="button" data-cg-action="approve" data-node-id="{{this.id}}" data-tooltip="{{../../labels.approve}}" title="{{../../labels.approve}}"><i class="fas fa-check"></i></button>
+              <button type="button" data-cg-action="reject" data-node-id="{{this.id}}" data-tooltip="{{../../labels.reject}}" title="{{../../labels.reject}}"><i class="fas fa-exclamation"></i></button>
+              {{/if}}
+              {{#if this.canEdit}}
+              <button type="button" data-cg-action="edit" data-node-id="{{this.id}}" data-tooltip="{{../../labels.edit}}" title="{{../../labels.edit}}"><i class="fas fa-pen"></i></button>
+              {{/if}}
+              {{#if this.canDelete}}
+              <button type="button" data-cg-action="delete" data-node-id="{{this.id}}" data-tooltip="{{../../labels.delete}}" title="{{../../labels.delete}}"><i class="fas fa-trash"></i></button>
+              {{/if}}
+            </span>
+          </div>
+
+          <ol class="character-goals-complications">
+            {{#each this.complications}}
+            <li class="character-goals-node character-goals-complication" data-node-id="{{this.id}}" data-node-kind="complication" data-node-text="{{this.text}}" data-visible-to-all="{{this.visibleToAll}}">
+              <div class="character-goals-row">
+                <span class="character-goals-kind-mark" aria-hidden="true"><i class="fas fa-bolt"></i></span>
+                <span class="character-goals-text">{{this.text}}</span>
+                <span class="character-goals-actions">
+                  {{#if this.canToggleVisibility}}
+                  <button type="button" data-cg-action="toggleVisibility" data-node-id="{{this.id}}"
+                          data-tooltip="{{#if this.visibleToAll}}{{../../../labels.visibleToAll}}{{else}}{{../../../labels.hiddenToOthers}}{{/if}}"
+                          title="{{#if this.visibleToAll}}{{../../../labels.visibleToAll}}{{else}}{{../../../labels.hiddenToOthers}}{{/if}}">
+                    {{#if this.visibleToAll}}<i class="fas fa-eye"></i>{{else}}<i class="fas fa-eye-slash"></i>{{/if}}
+                  </button>
+                  {{/if}}
+                  {{#if this.canEdit}}
+                  <button type="button" data-cg-action="edit" data-node-id="{{this.id}}" data-tooltip="{{../../../labels.edit}}" title="{{../../../labels.edit}}"><i class="fas fa-pen"></i></button>
+                  {{/if}}
+                  {{#if this.canDelete}}
+                  <button type="button" data-cg-action="delete" data-node-id="{{this.id}}" data-tooltip="{{../../../labels.delete}}" title="{{../../../labels.delete}}"><i class="fas fa-trash"></i></button>
+                  {{/if}}
+                </span>
+              </div>
+            </li>
+            {{/each}}
+          </ol>
+
+          {{#if this.canAddComplication}}
+          <button type="button" class="character-goals-inline-add" data-cg-action="addComplication" data-node-id="{{this.id}}">
+            <i class="fas fa-plus"></i> {{../../labels.addComplication}}
+          </button>
+          {{/if}}
+
+          {{#if ../../isGM}}
+          <div class="character-goals-links" data-drop-node="{{this.id}}">
+            <p class="hint">{{../../labels.dropHint}}</p>
+            {{#if this.linkedItems.length}}
+            <ul class="character-goals-link-list">
+              {{#each this.linkedItems}}
+              <li class="character-goals-link" data-uuid="{{this.uuid}}">
+                <a class="content-link" data-link data-uuid="{{this.uuid}}" data-type="Item" draggable="true">
+                  <img class="character-goals-item-icon" src="{{#if this.img}}{{this.img}}{{else}}icons/svg/item-bag.svg{{/if}}" alt="">
+                  <span>{{#if this.name}}{{this.name}}{{else}}{{this.uuid}}{{/if}}</span>
+                </a>
+                <button type="button" data-cg-action="removeLinkedItem" data-node-id="{{../id}}" data-uuid="{{this.uuid}}" data-tooltip="{{../../../labels.removeLink}}" title="{{../../../labels.removeLink}}">
+                  <i class="fas fa-times"></i>
+                </button>
+              </li>
+              {{/each}}
+            </ul>
+            {{/if}}
+          </div>
+          {{/if}}
+        </li>
+        {{/each}}
+      </ol>
+
+      {{#if this.canAddShortGoal}}
+      <button type="button" class="character-goals-inline-add" data-cg-action="addShortGoal" data-node-id="{{this.id}}">
+        <i class="fas fa-plus"></i> {{../labels.addShortGoal}}
+      </button>
+      {{/if}}
+      {{#if this.encourageAnotherShort}}
+      <p class="hint character-goals-hint">{{../labels.shortGoalHint}}</p>
+      {{/if}}
+
+      <ol class="character-goals-complications">
+        {{#each this.complications}}
+        <li class="character-goals-node character-goals-complication" data-node-id="{{this.id}}" data-node-kind="complication" data-node-text="{{this.text}}" data-visible-to-all="{{this.visibleToAll}}">
+          <div class="character-goals-row">
+            <span class="character-goals-kind-mark" aria-hidden="true"><i class="fas fa-bolt"></i></span>
+            <span class="character-goals-text">{{this.text}}</span>
+            <span class="character-goals-actions">
+              {{#if this.canToggleVisibility}}
+              <button type="button" data-cg-action="toggleVisibility" data-node-id="{{this.id}}"
+                      data-tooltip="{{#if this.visibleToAll}}{{../../labels.visibleToAll}}{{else}}{{../../labels.hiddenToOthers}}{{/if}}"
+                      title="{{#if this.visibleToAll}}{{../../labels.visibleToAll}}{{else}}{{../../labels.hiddenToOthers}}{{/if}}">
+                {{#if this.visibleToAll}}<i class="fas fa-eye"></i>{{else}}<i class="fas fa-eye-slash"></i>{{/if}}
+              </button>
+              {{/if}}
+              {{#if this.canEdit}}
+              <button type="button" data-cg-action="edit" data-node-id="{{this.id}}" data-tooltip="{{../../labels.edit}}" title="{{../../labels.edit}}"><i class="fas fa-pen"></i></button>
+              {{/if}}
+              {{#if this.canDelete}}
+              <button type="button" data-cg-action="delete" data-node-id="{{this.id}}" data-tooltip="{{../../labels.delete}}" title="{{../../labels.delete}}"><i class="fas fa-trash"></i></button>
+              {{/if}}
+            </span>
+          </div>
+        </li>
+        {{/each}}
+      </ol>
+
+      {{#if this.canAddComplication}}
+      <button type="button" class="character-goals-inline-add" data-cg-action="addComplication" data-node-id="{{this.id}}">
+        <i class="fas fa-plus"></i> {{../labels.addComplication}}
+      </button>
+      {{/if}}
+
+      {{#if ../isGM}}
+      <div class="character-goals-links" data-drop-node="{{this.id}}">
+        <p class="hint">{{../labels.dropHint}}</p>
+        {{#if this.linkedItems.length}}
+        <ul class="character-goals-link-list">
+          {{#each this.linkedItems}}
+          <li class="character-goals-link" data-uuid="{{this.uuid}}">
+            <a class="content-link" data-link data-uuid="{{this.uuid}}" data-type="Item" draggable="true">
+              <img class="character-goals-item-icon" src="{{#if this.img}}{{this.img}}{{else}}icons/svg/item-bag.svg{{/if}}" alt="">
+              <span>{{#if this.name}}{{this.name}}{{else}}{{this.uuid}}{{/if}}</span>
+            </a>
+            <button type="button" data-cg-action="removeLinkedItem" data-node-id="{{../id}}" data-uuid="{{this.uuid}}" data-tooltip="{{../../labels.removeLink}}" title="{{../../labels.removeLink}}">
+              <i class="fas fa-times"></i>
+            </button>
+          </li>
+          {{/each}}
+        </ul>
+        {{/if}}
+      </div>
+      {{/if}}
+    </li>
+    {{/each}}
+  </ol>
+  {{/if}}
+</section>
