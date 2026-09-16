@@ -45,6 +45,29 @@ describe("permission matrix", () => {
     );
   });
 
+  it("hidden means hidden from other players only; every GM still sees the node", () => {
+    const playerFlag = seedAliceGoal();
+    const gmFlag = applyMutation(emptyFlag(), { type: "addGoal", text: "Secret pressure" }, { user: gm, actor: aliceActor }).flag;
+    const playerGoal = playerFlag.goals[0];
+    const gmGoal = gmFlag.goals[0];
+
+    assert.equal(playerGoal.visibility.visibleToAll, false);
+    assert.equal(canSeeNode(playerGoal, alice), true, "creator sees own hidden node");
+    assert.equal(canSeeNode(playerGoal, bob), false, "other players do not see hidden nodes");
+    assert.equal(canSeeNode(playerGoal, gm), true, "GM always sees hidden nodes");
+    assert.equal(canSeeNode(playerGoal, otherGm), true, "any GM always sees hidden nodes");
+    assert.equal(canSeeNode(gmGoal, gm), true);
+    assert.equal(canSeeNode(gmGoal, otherGm), true);
+    assert.equal(canSeeNode(gmGoal, alice), false);
+    assert.equal(canSeeNode(gmGoal, bob), false);
+
+    const gmView = filterFlagForViewer(playerFlag, gm, aliceActor);
+    const bobView = filterFlagForViewer(playerFlag, bob, aliceActor);
+    assert.equal(gmView.goals.length, 1);
+    assert.equal(bobView.goals.length, 0);
+    assert.equal(gmView.isGM, true);
+  });
+
   it("defaults new nodes to creator-only; GM-created is GM-only", () => {
     const playerFlag = seedAliceGoal();
     const gmFlag = applyMutation(emptyFlag(), { type: "addGoal", text: "Secret pressure" }, { user: gm, actor: aliceActor }).flag;

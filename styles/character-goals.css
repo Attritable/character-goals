@@ -96,8 +96,40 @@
 }
 
 .character-goals-hint,
-.character-goals-empty {
+.character-goals-empty,
+.character-goals-visibility-note {
   margin: 0.2rem 0 0.35rem;
+}
+
+.character-goals-visibility-note {
+  font-size: 0.85em;
+}
+
+.character-goals-stakes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+  margin: 0.2rem 0 0 1.5rem;
+  font-size: 0.85em;
+  line-height: 1.3;
+  color: var(--color-text-subtle, #aaa);
+}
+
+.character-goals-stake {
+  margin: 0;
+}
+
+.character-goals-stake-label {
+  font-weight: 600;
+  margin-right: 0.35rem;
+}
+
+.character-goals-stake.success .character-goals-stake-label {
+  color: var(--color-level-success, #2ecc71);
+}
+
+.character-goals-stake.failure .character-goals-stake-label {
+  color: var(--color-level-error, #c0392b);
 }
 
 .character-goals-links {

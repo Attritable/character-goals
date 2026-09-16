@@ -1,4 +1,4 @@
-<section class="tab {{tab.cssClass}} character-goals-page" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+<section class="tab {{tab.cssClass}} character-goals-page{{#if isDnd5e}} character-goals-dnd5e{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}" data-skin="{{skin}}">
   <header class="character-goals-header">
     <h3>{{labels.title}}</h3>
     {{#if canAddGoal}}
@@ -7,13 +7,16 @@
     </button>
     {{/if}}
   </header>
+  {{#if isGM}}
+  <p class="hint character-goals-visibility-note">{{labels.hiddenMeans}}</p>
+  {{/if}}
 
   {{#if empty}}
   <p class="character-goals-empty hint">{{labels.empty}}</p>
   {{else}}
   <ol class="character-goals-list">
     {{#each goals}}
-    <li class="character-goals-node character-goals-goal" data-node-id="{{this.id}}" data-node-kind="goal" data-node-text="{{this.text}}" data-visible-to-all="{{this.visibleToAll}}">
+    <li class="character-goals-node character-goals-goal" data-node-id="{{this.id}}" data-node-kind="goal" data-node-text="{{this.text}}" data-success-stake="{{this.successStake}}" data-failure-stake="{{this.failureStake}}" data-visible-to-all="{{this.visibleToAll}}">
       <div class="character-goals-row">
         <span class="character-goals-approval {{#if this.isApproved}}approved{{else if this.isRejected}}rejected{{else}}pending{{/if}}"
               data-tooltip="{{#if this.isRejected}}{{this.rejectReason}}{{else if this.isApproved}}{{../labels.approved}}{{else}}{{../labels.pending}}{{/if}}"
@@ -41,10 +44,16 @@
           {{/if}}
         </span>
       </div>
+      {{#if this.hasStakes}}
+      <div class="character-goals-stakes">
+        {{#if this.successStake}}<p class="character-goals-stake success"><span class="character-goals-stake-label">{{../labels.successStake}}</span> {{this.successStake}}</p>{{/if}}
+        {{#if this.failureStake}}<p class="character-goals-stake failure"><span class="character-goals-stake-label">{{../labels.failureStake}}</span> {{this.failureStake}}</p>{{/if}}
+      </div>
+      {{/if}}
 
       <ol class="character-goals-children">
         {{#each this.shortGoals}}
-        <li class="character-goals-node character-goals-short" data-node-id="{{this.id}}" data-node-kind="shortGoal" data-node-text="{{this.text}}" data-visible-to-all="{{this.visibleToAll}}">
+        <li class="character-goals-node character-goals-short" data-node-id="{{this.id}}" data-node-kind="shortGoal" data-node-text="{{this.text}}" data-success-stake="{{this.successStake}}" data-failure-stake="{{this.failureStake}}" data-visible-to-all="{{this.visibleToAll}}">
           <div class="character-goals-row">
             <span class="character-goals-approval {{#if this.isApproved}}approved{{else if this.isRejected}}rejected{{else}}pending{{/if}}"
                   data-tooltip="{{#if this.isRejected}}{{this.rejectReason}}{{else if this.isApproved}}{{../../labels.approved}}{{else}}{{../../labels.pending}}{{/if}}"
@@ -72,6 +81,12 @@
               {{/if}}
             </span>
           </div>
+          {{#if this.hasStakes}}
+          <div class="character-goals-stakes">
+            {{#if this.successStake}}<p class="character-goals-stake success"><span class="character-goals-stake-label">{{../../labels.successStake}}</span> {{this.successStake}}</p>{{/if}}
+            {{#if this.failureStake}}<p class="character-goals-stake failure"><span class="character-goals-stake-label">{{../../labels.failureStake}}</span> {{this.failureStake}}</p>{{/if}}
+          </div>
+          {{/if}}
 
           <ol class="character-goals-complications">
             {{#each this.complications}}
