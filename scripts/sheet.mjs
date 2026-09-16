@@ -12,6 +12,14 @@ import {
   filterFlagForViewer,
   readActorFlag,
 } from "./data.mjs";
+import {
+  DND5E_SKIN,
+  applyDnd5ePageClass,
+  dnd5ePartConfig,
+  dnd5eTabNavHtml,
+  injectDnd5eTabs,
+  resolveSheetSkin,
+} from "./systems/dnd5e.mjs";
 
 const CHARACTER_TYPES = new Set(["character", "pc", "player", "hero"]);
 const injected = new WeakSet();
@@ -46,9 +54,13 @@ export function isCharacterActor(actor) {
 export function buildSheetContext(actor, user, tab = {}) {
   const view = filterFlagForViewer(readActorFlag(actor), user, actor);
   const group = tab.group ?? "primary";
+  const skin = tab.skin ?? resolveSheetSkin({ actor });
+  const isDnd5e = skin === DND5E_SKIN;
   return {
     moduleId: MODULE_ID,
     tabId: TAB_ID,
+    skin,
+    isDnd5e,
     tab: {
       id: tab.id ?? TAB_ID,
       group,
@@ -80,7 +92,24 @@ export function buildSheetContext(actor, user, tab = {}) {
       rejected: localize("CHARACTERGOALS.Rejected", "Needs attention"),
       toggleVisible: localize("CHARACTERGOALS.ToggleVisible", "Toggle visibility for everyone"),
       visibleToAll: localize("CHARACTERGOALS.VisibleToAll", "Visible to everyone"),
-      hiddenToOthers: localize("CHARACTERGOALS.HiddenToOthers", "Visible only to the creator and GMs"),
+      hiddenToOthers: localize(
+        "CHARACTERGOALS.HiddenToOthers",
+        "Hidden from other players (the GM still sees this)",
+      ),
+      hiddenMeans: localize(
+        "CHARACTERGOALS.HiddenMeans",
+        "Hidden means hidden from other players only — the GM always sees every node.",
+      ),
+      successStake: localize("CHARACTERGOALS.SuccessStake", "Success"),
+      failureStake: localize("CHARACTERGOALS.FailureStake", "Failure"),
+      promptSuccessStake: localize(
+        "CHARACTERGOALS.PromptSuccessStake",
+        "What does success look like? (optional)",
+      ),
+      promptFailureStake: localize(
+        "CHARACTERGOALS.PromptFailureStake",
+        "What happens on failure? (optional)",
+      ),
       edit: localize("CHARACTERGOALS.Edit", "Edit"),
       delete: localize("CHARACTERGOALS.Delete", "Delete"),
       removeLink: localize("CHARACTERGOALS.RemoveLink", "Remove link"),
@@ -127,15 +156,20 @@ async function renderTemplate(path, context) {
 }
 
 export function renderGoalsHtmlFallback(context) {
-  const { labels, tab, canAddGoal, empty, goals, isGM } = context;
+  const { labels, tab, canAddGoal, empty, goals, isGM, isDnd5e } = context;
   const group = tab?.group ?? "primary";
   const tabId = tab?.id ?? TAB_ID;
+  const pageClass = `${MODULE_ID}-page${isDnd5e ? " character-goals-dnd5e" : ""}`;
   const rows = (goals ?? []).map((goal) => renderGoalFallback(goal, labels, isGM)).join("");
-  return `<section class="tab ${escapeHtml(tab?.cssClass ?? "")} ${MODULE_ID}-page" data-group="${escapeHtml(group)}" data-tab="${escapeHtml(tabId)}">
+  const gmNote = isGM && labels.hiddenMeans
+    ? `<p class="hint character-goals-visibility-note">${escapeHtml(labels.hiddenMeans)}</p>`
+    : "";
+  return `<section class="tab ${escapeHtml(tab?.cssClass ?? "")} ${pageClass}" data-group="${escapeHtml(group)}" data-tab="${escapeHtml(tabId)}">
     <header class="character-goals-header">
       <h3>${escapeHtml(labels.title)}</h3>
       ${canAddGoal ? `<button type="button" class="character-goals-add" data-cg-action="addGoal">${escapeHtml(labels.addGoal)}</button>` : ""}
     </header>
+    ${gmNote}
     ${empty ? `<p class="character-goals-empty hint">${escapeHtml(labels.empty)}</p>` : `<ol class="character-goals-list">${rows}</ol>`}
   </section>`;
 }
@@ -149,6 +183,7 @@ function renderGoalFallback(goal, labels, isGM) {
     .join("");
   return `<li class="character-goals-node character-goals-goal" data-node-id="${escapeHtml(goal.id)}" data-node-kind="goal">
     ${renderNodeChrome(goal, labels)}
+    ${renderStakesFallback(goal, labels)}
     <ol class="character-goals-children">${shorts}</ol>
     ${goal.canAddShortGoal ? `<button type="button" data-cg-action="addShortGoal" data-node-id="${escapeHtml(goal.id)}">${escapeHtml(labels.addShortGoal)}</button>` : ""}
     ${goal.canAddShortGoal && goal.encourageAnotherShort ? `<p class="hint character-goals-hint">${escapeHtml(labels.shortGoalHint)}</p>` : ""}
@@ -165,10 +200,23 @@ function renderChildFallback(node, labels, isGM, kind) {
     .join("");
   return `<li class="character-goals-node character-goals-${kind}" data-node-id="${escapeHtml(node.id)}" data-node-kind="${kind === "short" ? "shortGoal" : "complication"}">
     ${renderNodeChrome(node, labels)}
+    ${kind === "short" ? renderStakesFallback(node, labels) : ""}
     ${kind === "short" ? `<ol class="character-goals-complications">${complications}</ol>` : ""}
     ${kind === "short" && node.canAddComplication ? `<button type="button" data-cg-action="addComplication" data-node-id="${escapeHtml(node.id)}">${escapeHtml(labels.addComplication)}</button>` : ""}
     ${renderLinksFallback(node, labels, isGM)}
   </li>`;
+}
+
+function renderStakesFallback(node, labels) {
+  if (!node?.hasStakes && !node?.successStake && !node?.failureStake) return "";
+  const success = node.successStake
+    ? `<p class="character-goals-stake success"><span class="character-goals-stake-label">${escapeHtml(labels.successStake)}</span> ${escapeHtml(node.successStake)}</p>`
+    : "";
+  const failure = node.failureStake
+    ? `<p class="character-goals-stake failure"><span class="character-goals-stake-label">${escapeHtml(labels.failureStake)}</span> ${escapeHtml(node.failureStake)}</p>`
+    : "";
+  if (!success && !failure) return "";
+  return `<div class="character-goals-stakes">${success}${failure}</div>`;
 }
 
 function renderNodeChrome(node, labels) {
@@ -231,21 +279,27 @@ export function injectSheetClass(cls) {
   if (!cls || injected.has(cls)) return false;
   injected.add(cls);
 
+  const skin = resolveSheetSkin({ cls });
+
   if (cls.PARTS && !cls.PARTS[TAB_ID]) {
-    cls.PARTS[TAB_ID] = {
-      template: `modules/${MODULE_ID}/templates/goals-page.hbs`,
-      scrollable: [""],
-    };
+    cls.PARTS[TAB_ID] = skin === DND5E_SKIN
+      ? dnd5ePartConfig()
+      : {
+          template: `modules/${MODULE_ID}/templates/goals-page.hbs`,
+          scrollable: [""],
+        };
   }
 
-  if (cls.TABS) {
+  if (Array.isArray(cls.TABS)) {
+    injectDnd5eTabs(cls);
+  } else if (cls.TABS) {
     const groupKey = cls.TABS.primary
       ? "primary"
       : cls.TABS.sheet
         ? "sheet"
         : Object.keys(cls.TABS)[0];
     const group = groupKey ? cls.TABS[groupKey] : null;
-    if (group?.tabs && !group.tabs.some((tab) => tab.id === TAB_ID)) {
+    if (group?.tabs && !group.tabs.some((tab) => tab.id === TAB_ID || tab.tab === TAB_ID)) {
       group.tabs.push({
         id: TAB_ID,
         label: "CHARACTERGOALS.Tab",
@@ -277,10 +331,12 @@ async function injectDomPage(app, root) {
 
   const nav = findTabNav(root);
   const group = inferTabGroup(nav);
+  const skin = resolveSheetSkin({ actor });
   const context = buildSheetContext(actor, globalThis.game?.user, {
     id: TAB_ID,
     group,
     cssClass: "",
+    skin,
   });
   const pageHtml = await renderTemplate(`modules/${MODULE_ID}/templates/goals-page.hbs`, context);
 
@@ -288,7 +344,9 @@ async function injectDomPage(app, root) {
     const label = localize("CHARACTERGOALS.Tab", "Goals");
     nav.insertAdjacentHTML(
       "beforeend",
-      `<a class="item" data-action="tab" data-group="${escapeHtml(group)}" data-tab="${TAB_ID}">
+      skin === DND5E_SKIN
+        ? dnd5eTabNavHtml({ group, label })
+        : `<a class="item" data-action="tab" data-group="${escapeHtml(group)}" data-tab="${TAB_ID}">
         <i class="fa-solid fa-bullseye"></i> ${escapeHtml(label)}
       </a>`,
     );
@@ -330,6 +388,53 @@ async function promptText({ title, label, initial = "" }) {
   return typed == null ? null : String(typed).trim();
 }
 
+function readFormValue(form, name) {
+  return String(form?.elements?.[name]?.value ?? "").trim();
+}
+
+/** Goal / short-term add+edit: required text, optional success/failure stakes. */
+async function promptGoalFields({ title, textLabel, initial = {} }) {
+  const DialogV2 = globalThis.foundry?.applications?.api?.DialogV2;
+  const successLabel = localize(
+    "CHARACTERGOALS.PromptSuccessStake",
+    "What does success look like? (optional)",
+  );
+  const failureLabel = localize(
+    "CHARACTERGOALS.PromptFailureStake",
+    "What happens on failure? (optional)",
+  );
+  if (DialogV2?.prompt) {
+    try {
+      return await DialogV2.prompt({
+        window: { title },
+        content: `<div class="character-goals-form">
+          <div class="form-group"><label>${escapeHtml(textLabel)}</label><input type="text" name="text" value="${escapeHtml(initial.text ?? "")}"></div>
+          <div class="form-group"><label>${escapeHtml(successLabel)}</label><input type="text" name="successStake" value="${escapeHtml(initial.successStake ?? "")}"></div>
+          <div class="form-group"><label>${escapeHtml(failureLabel)}</label><input type="text" name="failureStake" value="${escapeHtml(initial.failureStake ?? "")}"></div>
+        </div>`,
+        ok: {
+          callback: (_event, button) => ({
+            text: readFormValue(button.form, "text"),
+            successStake: String(button.form.elements.successStake?.value ?? ""),
+            failureStake: String(button.form.elements.failureStake?.value ?? ""),
+          }),
+        },
+      });
+    } catch {
+      return null;
+    }
+  }
+  const typed = globalThis.prompt?.(textLabel, initial.text ?? "");
+  if (typed == null) return null;
+  const text = String(typed).trim();
+  if (!text) return null;
+  return {
+    text,
+    successStake: initial.successStake ?? "",
+    failureStake: initial.failureStake ?? "",
+  };
+}
+
 async function confirmAction(message) {
   const DialogV2 = globalThis.foundry?.applications?.api?.DialogV2;
   if (DialogV2?.confirm) {
@@ -355,20 +460,20 @@ export async function handleSheetAction(actor, user, { action, nodeId, uuid, ext
         await notify("warn", "CHARACTERGOALS.NotPermitted", "You cannot do that.");
         return { ok: false, error: "Not permitted" };
       }
-      const text = await promptText({
+      const fields = await promptGoalFields({
         title: localize("CHARACTERGOALS.AddGoal", "Add goal"),
-        label: localize("CHARACTERGOALS.PromptGoal", "What is the long- or mid-term goal?"),
+        textLabel: localize("CHARACTERGOALS.PromptGoal", "What is the long- or mid-term goal?"),
       });
-      if (!text) return { ok: false, error: "cancelled" };
-      return writeMutation(actor, { type: "addGoal", text });
+      if (!fields?.text) return { ok: false, error: "cancelled" };
+      return writeMutation(actor, { type: "addGoal", ...fields });
     }
     case "addShortGoal": {
-      const text = await promptText({
+      const fields = await promptGoalFields({
         title: localize("CHARACTERGOALS.AddShortGoal", "Add short-term goal"),
-        label: localize("CHARACTERGOALS.PromptShortGoal", "What short-term step moves this goal?"),
+        textLabel: localize("CHARACTERGOALS.PromptShortGoal", "What short-term step moves this goal?"),
       });
-      if (!text) return { ok: false, error: "cancelled" };
-      return writeMutation(actor, { type: "addShortGoal", goalId: nodeId, text });
+      if (!fields?.text) return { ok: false, error: "cancelled" };
+      return writeMutation(actor, { type: "addShortGoal", goalId: nodeId, ...fields });
     }
     case "addComplication": {
       const text = await promptText({
@@ -379,6 +484,21 @@ export async function handleSheetAction(actor, user, { action, nodeId, uuid, ext
       return writeMutation(actor, { type: "addComplication", parentId: nodeId, text });
     }
     case "edit": {
+      const kind = extra?.nodeKind ?? "";
+      const isGoalLike = kind === "goal" || kind === "shortGoal";
+      if (isGoalLike) {
+        const fields = await promptGoalFields({
+          title: localize("CHARACTERGOALS.Edit", "Edit"),
+          textLabel: localize("CHARACTERGOALS.PromptEdit", "Update the text"),
+          initial: {
+            text: extra?.currentText ?? "",
+            successStake: extra?.currentSuccessStake ?? "",
+            failureStake: extra?.currentFailureStake ?? "",
+          },
+        });
+        if (!fields?.text) return { ok: false, error: "cancelled" };
+        return writeMutation(actor, { type: "updateText", nodeId, ...fields });
+      }
       const current = extra?.currentText ?? "";
       const text = await promptText({
         title: localize("CHARACTERGOALS.Edit", "Edit"),
@@ -481,6 +601,9 @@ export function bindGoalsListeners(app, root) {
       uuid: button.dataset.uuid,
       extra: {
         currentText: nodeEl?.dataset?.nodeText ?? "",
+        currentSuccessStake: nodeEl?.dataset?.successStake ?? "",
+        currentFailureStake: nodeEl?.dataset?.failureStake ?? "",
+        nodeKind: nodeEl?.dataset?.nodeKind ?? "",
         visibleToAll,
       },
     });
@@ -512,6 +635,7 @@ export async function onRenderActorSheetV2(app, element) {
   const root = asElement(element) ?? app.element;
   if (!root) return;
   if (!tabAlreadyPresent(root)) await injectDomPage(app, root);
+  if (resolveSheetSkin({ actor }) === DND5E_SKIN) applyDnd5ePageClass(root);
   bindGoalsListeners(app, root);
 }
 
