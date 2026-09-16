@@ -129,4 +129,14 @@ describe("permission matrix", () => {
     assert.deepEqual(aliceView.goals.map((goal) => goal.text), ["Alice secret"]);
     assert.equal(gmView.goals.length, 2);
   });
+
+  it("hides the add-short control once a parent already has two shorts", () => {
+    let flag = seedAliceGoal();
+    const id = flag.goals[0].id;
+    flag = applyMutation(flag, { type: "addShortGoal", goalId: id, text: "One" }, { user: alice, actor: aliceActor }).flag;
+    flag = applyMutation(flag, { type: "addShortGoal", goalId: id, text: "Two" }, { user: alice, actor: aliceActor }).flag;
+    const view = filterFlagForViewer(flag, alice, aliceActor);
+    assert.equal(view.goals[0].canAddShortGoal, false);
+    assert.equal(view.goals[0].atShortGoalCap, true);
+  });
 });

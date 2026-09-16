@@ -46,11 +46,13 @@ describe("normalizeFlag", () => {
     assert.equal(goal.linkedItems[0].name, "Map");
   });
 
-  it("does not hard-cap short-term goals in data", () => {
+  it("normalize preserves extra short-term goals already stored", () => {
     const goal = createGoal({ text: "Long", userId: "u-alice" });
     goal.shortGoals = [1, 2, 3].map((n) => ({ id: `s${n}`, text: `Step ${n}` }));
     const flag = normalizeFlag({ goals: [goal] });
     assert.equal(flag.goals[0].shortGoals.length, 3);
+    assert.equal(flag.goals[0].type, "goal_longmid");
+    assert.equal(flag.goals[0].shortGoals[0].type, "goal_short");
   });
 });
 
@@ -70,13 +72,17 @@ describe("CRUD mutations", () => {
     assert.equal(flag.goals[0].complications[0].visibility.visibleToAll, false);
   });
 
-  it("allows a third short-term goal in data while UI encourages 1–2", () => {
+  it("enforces a maximum of 2 short-term goals per parent", () => {
     let { flag } = addGoal(emptyFlag(), alice, aliceActor, "Long");
     const goalId = flag.goals[0].id;
-    for (const text of ["A", "B", "C"]) {
-      ({ flag } = applyMutation(flag, { type: "addShortGoal", goalId, text }, { user: alice, actor: aliceActor }));
-    }
-    assert.equal(flag.goals[0].shortGoals.length, 3);
+    const first = applyMutation(flag, { type: "addShortGoal", goalId, text: "A" }, { user: alice, actor: aliceActor });
+    const second = applyMutation(first.flag, { type: "addShortGoal", goalId, text: "B" }, { user: alice, actor: aliceActor });
+    const third = applyMutation(second.flag, { type: "addShortGoal", goalId, text: "C" }, { user: alice, actor: aliceActor });
+    assert.equal(first.ok, true);
+    assert.equal(second.ok, true);
+    assert.equal(third.ok, false);
+    assert.match(third.error, /At most 2/);
+    assert.equal(second.flag.goals[0].shortGoals.length, 2);
   });
 
   it("updates and deletes only the targeted node", () => {
@@ -149,6 +155,22 @@ describe("CRUD mutations", () => {
     ));
     assert.equal(flag.goals[0].approval, "rejected");
     assert.equal(flag.goals[0].rejectReason, "Scope is a campaign, not a goal");
+    const missingReason = applyMutation(flag, { type: "setApproval", nodeId: id, approval: "rejected" }, { user: gm, actor: aliceActor });
+    assert.equal(missingReason.ok, false);
+  });
+
+  it("links items onto complications as well as goals", () => {
+    let { flag } = addGoal(emptyFlag(), alice, aliceActor, "Goal");
+    const goalId = flag.goals[0].id;
+    ({ flag } = applyMutation(flag, { type: "addComplication", parentId: goalId, text: "Spy" }, { user: bob, actor: aliceActor }));
+    const complicationId = flag.goals[0].complications[0].id;
+    ({ flag } = applyMutation(
+      flag,
+      { type: "addLinkedItem", parentId: complicationId, item: { uuid: "Item.spyglass", name: "Spyglass" } },
+      { user: gm, actor: aliceActor },
+    ));
+    assert.equal(flag.goals[0].complications[0].linkedItems[0].uuid, "Item.spyglass");
+    assert.equal(flag.goals[0].linkedItems.length, 0);
   });
 });
 
