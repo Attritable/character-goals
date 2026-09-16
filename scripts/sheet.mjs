@@ -69,8 +69,9 @@ export function buildSheetContext(actor, user, tab = {}) {
               : "No goals are visible to you on this character.",
           )
         : "",
-      shortGoalHint: localize("CHARACTERGOALS.ShortGoalHint", "1–2 short-term goals work best"),
-      dropHint: localize("CHARACTERGOALS.DropHint", "Drop a Foundry Item to link it (GM-only)"),
+      shortGoalHint: localize("CHARACTERGOALS.ShortGoalHint", "Up to 2 short-term goals"),
+      shortGoalCap: localize("CHARACTERGOALS.ShortGoalCap", "Maximum of 2 short-term goals"),
+      dropHint: localize("CHARACTERGOALS.DropHint", "Drop a Foundry Item or Actor to link it (GM-only)"),
       linkedItems: localize("CHARACTERGOALS.LinkedItems", "Linked items"),
       approve: localize("CHARACTERGOALS.Approve", "Approve"),
       reject: localize("CHARACTERGOALS.Reject", "Flag an issue"),
@@ -150,7 +151,8 @@ function renderGoalFallback(goal, labels, isGM) {
     ${renderNodeChrome(goal, labels)}
     <ol class="character-goals-children">${shorts}</ol>
     ${goal.canAddShortGoal ? `<button type="button" data-cg-action="addShortGoal" data-node-id="${escapeHtml(goal.id)}">${escapeHtml(labels.addShortGoal)}</button>` : ""}
-    ${goal.encourageAnotherShort ? `<p class="hint character-goals-hint">${escapeHtml(labels.shortGoalHint)}</p>` : ""}
+    ${goal.canAddShortGoal && goal.encourageAnotherShort ? `<p class="hint character-goals-hint">${escapeHtml(labels.shortGoalHint)}</p>` : ""}
+    ${goal.atShortGoalCap ? `<p class="hint character-goals-hint">${escapeHtml(labels.shortGoalCap)}</p>` : ""}
     <ol class="character-goals-complications">${complications}</ol>
     ${goal.canAddComplication ? `<button type="button" data-cg-action="addComplication" data-node-id="${escapeHtml(goal.id)}">${escapeHtml(labels.addComplication)}</button>` : ""}
     ${renderLinksFallback(goal, labels, isGM)}
@@ -165,7 +167,7 @@ function renderChildFallback(node, labels, isGM, kind) {
     ${renderNodeChrome(node, labels)}
     ${kind === "short" ? `<ol class="character-goals-complications">${complications}</ol>` : ""}
     ${kind === "short" && node.canAddComplication ? `<button type="button" data-cg-action="addComplication" data-node-id="${escapeHtml(node.id)}">${escapeHtml(labels.addComplication)}</button>` : ""}
-    ${kind === "short" ? renderLinksFallback(node, labels, isGM) : ""}
+    ${renderLinksFallback(node, labels, isGM)}
   </li>`;
 }
 
@@ -425,7 +427,7 @@ async function onItemDrop(actor, user, event) {
   event.preventDefault();
   event.stopPropagation();
   const data = getDragEventData(event);
-  if (!data || data.type !== "Item" || !data.uuid) return false;
+  if (!data?.uuid || !["Item", "Actor", "Token"].includes(data.type)) return false;
   let name = data.name;
   let img = data.img;
   try {
