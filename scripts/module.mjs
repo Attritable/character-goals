@@ -11,6 +11,7 @@ import {
   onRenderActorSheetV2,
   setWriteMutation,
 } from "./sheet.mjs";
+import { dnd5eRenderHooks, isDnd5eSystem } from "./systems/dnd5e.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 
@@ -108,5 +109,12 @@ Hooks.on("renderActorSheetV2", (app, element) => {
 Hooks.on("renderActorSheet", (app, html) => {
   onRenderActorSheet(app, html);
 });
+
+for (const hook of dnd5eRenderHooks()) {
+  Hooks.on(hook, (app, html) => {
+    if (!isDnd5eSystem()) return;
+    onRenderActorSheet(app, html);
+  });
+}
 
 export { MODULE_ID, normalizeFlag, writeMutation };
