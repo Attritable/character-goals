@@ -1,8 +1,8 @@
 {
   "id": "character-goals",
   "title": "Character Goals",
-  "description": "An unobtrusive extra character sheet page for long/mid-term goals, short-term steps, and complications.",
-  "version": "1.0.0",
+  "description": "An unobtrusive extra character sheet page for long/mid-term goals, short-term steps, optional stakes, and complications. System-agnostic core plus a dnd5e sheet skin.",
+  "version": "1.1.0",
   "compatibility": {
     "minimum": "14",
     "verified": "14"
@@ -16,7 +16,8 @@
     "scripts/module.mjs"
   ],
   "styles": [
-    "styles/character-goals.css"
+    "styles/character-goals.css",
+    "styles/character-goals-dnd5e.css"
   ],
   "languages": [
     {
@@ -38,6 +39,13 @@
         "type": "system",
         "compatibility": {
           "minimum": "1.5.0"
+        }
+      },
+      {
+        "id": "dnd5e",
+        "type": "system",
+        "compatibility": {
+          "minimum": "4.0.0"
         }
       }
     ]

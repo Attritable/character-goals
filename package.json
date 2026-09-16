@@ -1,6 +1,6 @@
 {
   "name": "character-goals",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "Foundry VTT v14 character sheet page for goals and complications",

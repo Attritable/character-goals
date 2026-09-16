@@ -1,0 +1,78 @@
+/* dnd5e 4.x/5.x (dnd5e2) skin — gold cards, Modesto-adjacent type. Agnostic chrome stays in character-goals.css. */
+
+.character-goals-dnd5e,
+.dnd5e2 .character-goals-page,
+.dnd5e .character-goals-page {
+  --cg-5e-gold: var(--dnd5e-color-gold, #c9a66b);
+  --cg-5e-gold-soft: var(--dnd5e-color-gold-soft, rgba(201, 166, 107, 0.22));
+  --cg-5e-card: var(--dnd5e-background-card, rgba(40, 36, 32, 0.55));
+  --cg-5e-ink: var(--dnd5e-color-black, #3e2d20);
+  gap: 0.6rem;
+  padding: 0.45rem 0.25rem 0.85rem;
+}
+
+.character-goals-dnd5e .character-goals-header h3,
+.dnd5e2 .character-goals-page .character-goals-header h3 {
+  font-family: var(--dnd5e-font-modesto, "Modesto Condensed", "Palatino Linotype", serif);
+  font-size: 1.25em;
+  letter-spacing: 0.02em;
+  color: var(--cg-5e-gold);
+  border: none;
+}
+
+.character-goals-dnd5e .character-goals-node,
+.dnd5e2 .character-goals-page .character-goals-node {
+  background: var(--cg-5e-card);
+  border: 1px solid var(--cg-5e-gold);
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--cg-5e-gold) 25%, transparent);
+}
+
+.character-goals-dnd5e .character-goals-complication,
+.dnd5e2 .character-goals-page .character-goals-complication {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--cg-5e-gold) 70%, #888);
+}
+
+.character-goals-dnd5e .character-goals-add,
+.character-goals-dnd5e .character-goals-inline-add,
+.character-goals-dnd5e .character-goals-actions button,
+.dnd5e2 .character-goals-page .character-goals-add,
+.dnd5e2 .character-goals-page .character-goals-inline-add,
+.dnd5e2 .character-goals-page .character-goals-actions button {
+  background: var(--cg-5e-gold-soft);
+  border: 1px solid var(--cg-5e-gold);
+  color: inherit;
+  border-radius: 3px;
+  font-family: var(--dnd5e-font-roboto-condensed, "Roboto Condensed", sans-serif);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.78em;
+}
+
+.character-goals-dnd5e .character-goals-stakes,
+.dnd5e2 .character-goals-page .character-goals-stakes {
+  font-family: var(--dnd5e-font-roboto, Roboto, sans-serif);
+}
+
+.character-goals-dnd5e .character-goals-stake.success .character-goals-stake-label,
+.dnd5e2 .character-goals-page .character-goals-stake.success .character-goals-stake-label {
+  color: var(--dnd5e-color-green, #4b8b3b);
+}
+
+.character-goals-dnd5e .character-goals-stake.failure .character-goals-stake-label,
+.dnd5e2 .character-goals-page .character-goals-stake.failure .character-goals-stake-label {
+  color: var(--dnd5e-color-red, #c01d1d);
+}
+
+.character-goals-dnd5e .character-goals-links,
+.dnd5e2 .character-goals-page .character-goals-links {
+  border-color: var(--cg-5e-gold);
+  background: var(--cg-5e-gold-soft);
+}
+
+.character-goals-dnd5e .character-goals-visibility-note,
+.dnd5e2 .character-goals-page .character-goals-visibility-note {
+  font-family: var(--dnd5e-font-roboto, Roboto, sans-serif);
+  color: var(--cg-5e-gold);
+}

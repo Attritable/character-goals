@@ -11,8 +11,13 @@ describe("module.json", () => {
     assert.equal(manifest.compatibility.minimum, "14");
     assert.equal(String(manifest.compatibility.verified).startsWith("14"), true);
     assert.equal(manifest.socket, true);
+    assert.equal(manifest.version, "1.1.0");
     assert.ok(manifest.esmodules.includes("scripts/module.mjs"));
     assert.ok(manifest.styles.includes("styles/character-goals.css"));
+    assert.ok(manifest.styles.includes("styles/character-goals-dnd5e.css"));
     assert.equal(manifest.languages[0].path, "lang/en.json");
+    const recommended = (manifest.relationships?.recommends ?? []).map((row) => row.id);
+    assert.ok(recommended.includes("wwn"));
+    assert.ok(recommended.includes("dnd5e"));
   });
 });
