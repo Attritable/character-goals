@@ -1,0 +1,138 @@
+/* Unobtrusive extra page — follow Foundry sheet chrome, not a floating app. */
+
+.character-goals-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.35rem 0.15rem 0.75rem;
+  min-height: 0;
+}
+
+.character-goals-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.character-goals-header h3 {
+  margin: 0;
+  font-size: 1.05em;
+}
+
+.character-goals-list,
+.character-goals-children,
+.character-goals-complications,
+.character-goals-link-list {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+}
+
+.character-goals-node {
+  border: 1px solid var(--color-border-light-tertiary, var(--color-cool-5, #555));
+  border-radius: 4px;
+  padding: 0.4rem 0.5rem;
+  margin: 0.4rem 0;
+  background: color-mix(in srgb, var(--color-cool-4, #1d1d1d) 18%, transparent);
+}
+
+.character-goals-short {
+  margin-left: 0.65rem;
+}
+
+.character-goals-complication {
+  margin-left: 0.65rem;
+  border-style: dashed;
+}
+
+.character-goals-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.character-goals-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.character-goals-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  flex: 0 0 auto;
+}
+
+.character-goals-actions button,
+.character-goals-add,
+.character-goals-inline-add {
+  width: auto;
+  height: auto;
+  min-height: 1.5rem;
+  line-height: 1.2;
+  padding: 0.15rem 0.4rem;
+}
+
+.character-goals-approval,
+.character-goals-kind-mark {
+  flex: 0 0 1.1rem;
+  text-align: center;
+  padding-top: 0.1rem;
+}
+
+.character-goals-approval.approved {
+  color: var(--color-level-success, #2ecc71);
+}
+
+.character-goals-approval.rejected {
+  color: var(--color-level-error, #e74c3c);
+}
+
+.character-goals-approval.pending,
+.character-goals-kind-mark {
+  color: var(--color-text-subtle, #999);
+}
+
+.character-goals-hint,
+.character-goals-empty {
+  margin: 0.2rem 0 0.35rem;
+}
+
+.character-goals-links {
+  margin-top: 0.4rem;
+  padding: 0.35rem;
+  border: 1px dashed var(--color-border-light-primary, #666);
+  border-radius: 4px;
+}
+
+.character-goals-link {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.character-goals-item-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  border: none;
+  flex: 0 0 20px;
+}
+
+.character-goals-page button i {
+  margin: 0;
+}
+
+@media (max-width: 560px) {
+  .character-goals-header,
+  .character-goals-row {
+    flex-wrap: wrap;
+  }
+
+  .character-goals-short,
+  .character-goals-complication {
+    margin-left: 0.25rem;
+  }
+}
