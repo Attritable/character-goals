@@ -5,7 +5,9 @@
  * Hierarchy follows the Fishel proactive-goal shell (players invent measurable
  * long/mid goals, then 1–2 short steps). Complications, approve/reject, and
  * default-hidden visibility are table process — not book mechanics.
- * Optional later fields: failure stakes, “what success looks like”.
+ *
+ * Hidden means hidden from other players only. Every GM always sees all nodes.
+ * Parent and short goals persist optional successStake / failureStake strings.
  */
 
 export const MODULE_ID = "character-goals";
@@ -45,6 +47,7 @@ export const ACTIONS = Object.freeze({
   SEE: "see",
   SEE_LINKS: "seeLinks",
   LINK_ITEM: "linkItem",
+  UPDATE_STAKES: "updateStakes",
 });
 
 export const OWNERSHIP_OWNER = 3;
@@ -95,6 +98,10 @@ export function canUserUpdateActor(actor, user) {
   return isOwner(actor, user);
 }
 
+/**
+ * Creator and every GM always see the node.
+ * Hidden (`visibleToAll: false`) means hidden from other players only.
+ */
 export function canSeeNode(node, user) {
   if (!node || !user) return false;
   if (isGM(user)) return true;
@@ -115,6 +122,7 @@ export function authorize(action, { user, actor, node } = {}) {
       return Boolean(user?.id);
     case ACTIONS.EDIT:
     case ACTIONS.DELETE:
+    case ACTIONS.UPDATE_STAKES:
       return isGM(user) || isCreator(node, user);
     case ACTIONS.APPROVE:
     case ACTIONS.REJECT:
@@ -158,7 +166,11 @@ export function createComplication({ text = "", userId } = {}) {
   };
 }
 
-export function createShortGoal({ text = "", userId } = {}) {
+export function normalizeStake(raw) {
+  return typeof raw === "string" ? raw : "";
+}
+
+export function createShortGoal({ text = "", userId, successStake = "", failureStake = "" } = {}) {
   return {
     id: createId(),
     type: NODE_TYPE.shortGoal,
@@ -166,12 +178,14 @@ export function createShortGoal({ text = "", userId } = {}) {
     approval: APPROVAL.pending,
     visibility: createVisibility(userId),
     createdAt: nowIso(),
+    successStake: normalizeStake(successStake),
+    failureStake: normalizeStake(failureStake),
     complications: [],
     linkedItems: [],
   };
 }
 
-export function createGoal({ text = "", userId } = {}) {
+export function createGoal({ text = "", userId, successStake = "", failureStake = "" } = {}) {
   return {
     id: createId(),
     type: NODE_TYPE.goal,
@@ -179,6 +193,8 @@ export function createGoal({ text = "", userId } = {}) {
     approval: APPROVAL.pending,
     visibility: createVisibility(userId),
     createdAt: nowIso(),
+    successStake: normalizeStake(successStake),
+    failureStake: normalizeStake(failureStake),
     shortGoals: [],
     complications: [],
     linkedItems: [],
@@ -236,6 +252,8 @@ function normalizeShortGoal(raw) {
     linkedItems: Array.isArray(raw.linkedItems)
       ? raw.linkedItems.map(normalizeLinkedItem).filter(Boolean)
       : [],
+    successStake: normalizeStake(raw.successStake),
+    failureStake: normalizeStake(raw.failureStake),
   };
   const createdAt = normalizeCreatedAt(raw.createdAt);
   if (createdAt) node.createdAt = createdAt;
@@ -260,6 +278,8 @@ function normalizeGoal(raw) {
     linkedItems: Array.isArray(raw.linkedItems)
       ? raw.linkedItems.map(normalizeLinkedItem).filter(Boolean)
       : [],
+    successStake: normalizeStake(raw.successStake),
+    failureStake: normalizeStake(raw.failureStake),
   };
   const createdAt = normalizeCreatedAt(raw.createdAt);
   if (createdAt) node.createdAt = createdAt;
@@ -351,7 +371,12 @@ export function applyMutation(flag, mutation, ctx = {}) {
       if (denied) return denied;
       const text = String(mutation.text ?? "").trim();
       if (!text) return fail("Goal text is required");
-      next.goals.push(createGoal({ text, userId }));
+      next.goals.push(createGoal({
+        text,
+        userId,
+        successStake: mutation.successStake,
+        failureStake: mutation.failureStake,
+      }));
       return ok(next);
     }
     case "addShortGoal": {
@@ -364,7 +389,12 @@ export function applyMutation(flag, mutation, ctx = {}) {
       if (found.node.shortGoals.length >= MAX_SHORT_GOALS) {
         return fail(`At most ${MAX_SHORT_GOALS} short-term goals per parent`);
       }
-      found.node.shortGoals.push(createShortGoal({ text, userId }));
+      found.node.shortGoals.push(createShortGoal({
+        text,
+        userId,
+        successStake: mutation.successStake,
+        failureStake: mutation.failureStake,
+      }));
       return ok(next);
     }
     case "addComplication": {
@@ -385,6 +415,20 @@ export function applyMutation(flag, mutation, ctx = {}) {
       const text = String(mutation.text ?? "").trim();
       if (!text) return fail("Text is required");
       found.node.text = text;
+      if (found.kind !== NODE_KIND.complication) {
+        if ("successStake" in mutation) found.node.successStake = normalizeStake(mutation.successStake);
+        if ("failureStake" in mutation) found.node.failureStake = normalizeStake(mutation.failureStake);
+      }
+      return ok(next);
+    }
+    case "updateStakes": {
+      const found = findNode(next, mutation.nodeId);
+      if (!found) return fail("Node not found");
+      if (found.kind === NODE_KIND.complication) return fail("Stakes apply to goals only");
+      const denied = requireAuth(ctx, ACTIONS.UPDATE_STAKES, found.node);
+      if (denied) return denied;
+      if ("successStake" in mutation) found.node.successStake = normalizeStake(mutation.successStake);
+      if ("failureStake" in mutation) found.node.failureStake = normalizeStake(mutation.failureStake);
       return ok(next);
     }
     case "deleteNode": {
@@ -453,6 +497,11 @@ export function applyMutation(flag, mutation, ctx = {}) {
 
 function decorateNode(node, user, extras = {}) {
   const seen = canSeeNode(node, user);
+  const kind = extras.kind ?? node.kind;
+  const isGoalLike = kind === NODE_KIND.goal || kind === NODE_KIND.shortGoal
+    || node.type === NODE_TYPE.goal || node.type === NODE_TYPE.shortGoal;
+  const successStake = isGoalLike ? normalizeStake(node.successStake) : "";
+  const failureStake = isGoalLike ? normalizeStake(node.failureStake) : "";
   return {
     ...node,
     ...extras,
@@ -467,6 +516,9 @@ function decorateNode(node, user, extras = {}) {
     isPending: !node.approval || node.approval === APPROVAL.pending,
     visibleToAll: Boolean(node.visibility?.visibleToAll),
     rejectReason: node.rejectReason ?? "",
+    successStake,
+    failureStake,
+    hasStakes: Boolean(successStake || failureStake),
   };
 }
 

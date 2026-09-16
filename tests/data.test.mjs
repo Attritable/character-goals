@@ -2,7 +2,9 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   applyMutation,
+  createComplication,
   createGoal,
+  createShortGoal,
   emptyFlag,
   findNode,
   normalizeFlag,
@@ -44,6 +46,86 @@ describe("normalizeFlag", () => {
     assert.equal(goal.shortGoals[0].approval, "pending");
     assert.equal(goal.linkedItems.length, 1);
     assert.equal(goal.linkedItems[0].name, "Map");
+  });
+
+  it("normalizes and persists successStake and failureStake on parent and short goals", () => {
+    const flag = normalizeFlag({
+      goals: [
+        {
+          id: "g1",
+          text: "Crown the heir",
+          successStake: "The rightful heir sits the throne",
+          failureStake: "Civil war",
+          shortGoals: [
+            {
+              id: "s1",
+              text: "Find the signet",
+              successStake: "Signet recovered",
+              failureStake: "A forged signet spreads",
+            },
+          ],
+          complications: [{ id: "c1", text: "A pretender" }],
+        },
+      ],
+    });
+    const goal = flag.goals[0];
+    assert.equal(goal.successStake, "The rightful heir sits the throne");
+    assert.equal(goal.failureStake, "Civil war");
+    assert.equal(goal.shortGoals[0].successStake, "Signet recovered");
+    assert.equal(goal.shortGoals[0].failureStake, "A forged signet spreads");
+    assert.equal("successStake" in goal.complications[0], false);
+    assert.equal(createGoal({ text: "X", userId: "u-alice" }).successStake, "");
+    assert.equal(createShortGoal({ text: "Y", userId: "u-alice" }).failureStake, "");
+    assert.equal("successStake" in createComplication({ text: "Z", userId: "u-bob" }), false);
+  });
+
+  it("applyMutation persists stakes on add and updateStakes", () => {
+    let result = applyMutation(
+      emptyFlag(),
+      { type: "addGoal", text: "Win the election", successStake: "Mayor", failureStake: "Exile" },
+      { user: alice, actor: aliceActor },
+    );
+    assert.equal(result.ok, true);
+    assert.equal(result.flag.goals[0].successStake, "Mayor");
+    assert.equal(result.flag.goals[0].failureStake, "Exile");
+    const goalId = result.flag.goals[0].id;
+    result = applyMutation(
+      result.flag,
+      { type: "addShortGoal", goalId, text: "Kiss babies", successStake: "Popular", failureStake: "Scandal" },
+      { user: alice, actor: aliceActor },
+    );
+    assert.equal(result.flag.goals[0].shortGoals[0].successStake, "Popular");
+    const shortId = result.flag.goals[0].shortGoals[0].id;
+    result = applyMutation(
+      result.flag,
+      { type: "updateStakes", nodeId: goalId, successStake: "Chancellor", failureStake: "Prison" },
+      { user: alice, actor: aliceActor },
+    );
+    assert.equal(result.ok, true);
+    assert.equal(result.flag.goals[0].successStake, "Chancellor");
+    assert.equal(result.flag.goals[0].failureStake, "Prison");
+    result = applyMutation(
+      result.flag,
+      { type: "updateText", nodeId: shortId, text: "Shake hands", successStake: "Allies", failureStake: "" },
+      { user: alice, actor: aliceActor },
+    );
+    assert.equal(result.flag.goals[0].shortGoals[0].text, "Shake hands");
+    assert.equal(result.flag.goals[0].shortGoals[0].successStake, "Allies");
+    assert.equal(result.flag.goals[0].shortGoals[0].failureStake, "");
+    result = applyMutation(result.flag, { type: "addComplication", parentId: goalId, text: "Spy" }, { user: bob, actor: aliceActor });
+    const denied = applyMutation(
+      result.flag,
+      { type: "updateStakes", nodeId: result.flag.goals[0].complications[0].id, successStake: "Nope" },
+      { user: bob, actor: aliceActor },
+    );
+    assert.equal(denied.ok, false);
+    assert.match(denied.error, /goals only/);
+    const hijack = applyMutation(
+      result.flag,
+      { type: "updateStakes", nodeId: goalId, successStake: "Hijack" },
+      { user: bob, actor: aliceActor },
+    );
+    assert.equal(hijack.ok, false);
   });
 
   it("normalize preserves extra short-term goals already stored", () => {
