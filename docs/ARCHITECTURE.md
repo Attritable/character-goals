@@ -1,11 +1,12 @@
 # Character Goals — architecture
 
-Starting contract from the Azir sketch, verified against Foundry VTT **v14** sheet APIs. Deviations are listed at the bottom.
+Starting contract from the Azir sketch, verified against Foundry VTT **v14** and the Vel'Koz / Heimerdinger v1 handoff. Deviations and resolved policy are listed at the bottom.
 
 ## Public surface
 
 - One Actor sheet **page/tab**: "Goals"
 - No ApplicationV2 floating board
+- **System-agnostic** character Actor sheets (not dnd5e-only)
 
 ## Data (per Actor)
 
@@ -15,30 +16,38 @@ Starting contract from the Azir sketch, verified against Foundry VTT **v14** she
 type Visibility = { createdBy: string; visibleToAll: boolean }; // GM eyeball sets visibleToAll
 type Approval = "pending" | "approved" | "rejected";
 type LinkedItem = { uuid: string; name?: string; img?: string }; // GM-only in UI
+type NodeType = "goal_longmid" | "goal_short" | "complication";
 
 type Complication = {
   id: string;
+  type: "complication";
   text: string;
   visibility: Visibility;
+  createdAt?: string;
+  linkedItems: LinkedItem[];
 };
 
 type ShortGoal = {
   id: string;
+  type: "goal_short";
   text: string;
   approval: Approval;
-  rejectReason?: string;
+  rejectReason?: string; // required when rejected
   visibility: Visibility;
+  createdAt?: string;
   complications: Complication[];
-  linkedItems: LinkedItem[]; // GM-only display
+  linkedItems: LinkedItem[];
 };
 
 type Goal = {
   id: string;
-  text: string; // long/midterm
+  type: "goal_longmid";
+  text: string; // long/midterm; free text in v1
   approval: Approval;
   rejectReason?: string;
   visibility: Visibility;
-  shortGoals: ShortGoal[]; // 1–2 encouraged in UI, not hard-capped in data
+  createdAt?: string;
+  shortGoals: ShortGoal[]; // hard cap: 2
   complications: Complication[];
   linkedItems: LinkedItem[];
 };
@@ -46,66 +55,61 @@ type Goal = {
 type ActorGoalsFlag = { goals: Goal[] };
 ```
 
-`img` on `LinkedItem` is an additive cache of the Foundry Item icon so the GM-only chip can render without a live `fromUuid` round-trip.
+`img` on `LinkedItem` caches the Foundry icon so the GM chip can render without a live `fromUuid` round-trip.
+
+v1 does **not** store failure stakes or “what success looks like” as separate fields. Stubbed in the README for later.
 
 ## Permissions (UI + write path)
 
 | Action | Who |
 | --- | --- |
 | Add goal | Owner of actor, or GM |
-| Add short-term goal | Owner of actor, or GM |
+| Add short-term goal | Owner of actor, or GM; **max 2** per parent |
 | Add complication | Any player (own or others' actors), or GM |
-| Edit/delete own created node | Creator or GM |
-| Approve/reject | GM |
+| Edit/delete own created node | Creator or GM (not another player on your sheet) |
+| Approve/reject | GM; reject requires a reason |
 | Eyeball visibility | GM (even if not the creator) |
-| See node | Creator, or GM, or everyone if `visibleToAll` |
+| See node | Creator, **any GM always**, or everyone if `visibleToAll` |
 | See linkedItems | GM only |
 
-Visibility is **UI + write-path**. Actor flags are still in the document payload for anyone who can see the Actor. That matches typical Foundry module practice; it is not document-level secrecy.
+Visibility is **UI + write-path**. Actor flags are still in the document payload for anyone who can see the Actor.
 
 ## Hooks / sheet injection (v14)
 
-Foundry v14 does **not** ship a global “register an extra Actor sheet page” API. ApplicationV2 sheets expose `static PARTS` + `static TABS` so modules can inject a tab. Worlds Without Number PC sheets already do this (`TABS.primary`, generic `tab-navigation.hbs`, `_preparePartContext` assigns `context.tab = context.tabs[partId]`).
+Foundry v14 does **not** ship a global “register an extra Actor sheet page” API. ApplicationV2 sheets expose `static PARTS` + `static TABS`. Worlds Without Number PC sheets already do this (`TABS.primary`).
 
 This module:
 
 1. On `setup` / `ready`, walks `CONFIG.Actor.sheetClasses` for character-like types (`character`, `pc`, `player`, `hero`) and injects `PARTS["character-goals"]` + a `TABS` entry. Wraps `_preparePartContext` so the part receives the filtered goals view-model.
-2. Hooks `renderActorSheetV2` (HTMLElement) and legacy `renderActorSheet` (jQuery-or-element). If the Goals tab is missing (system did not use PARTS/TABS, or `_configureRenderParts` dropped it), the module DOM-injects a nav item + page.
-3. Binds click / drop listeners on the Goals page only. Item drops call `foundry.applications.ux.TextEditor.implementation.getDragEventData` (legacy `TextEditor.getDragEventData` fallback) and `stopPropagation` so the sheet does not also embed the Item.
+2. Hooks `renderActorSheetV2` (HTMLElement) and legacy `renderActorSheet`. If the Goals tab is missing, the module DOM-injects a nav item + page.
+3. Binds click / drop listeners on the Goals page only. Item (or Actor/Token) drops call `foundry.applications.ux.TextEditor.implementation.getDragEventData` and `stopPropagation`.
 
 ## Writes
 
 - Owner/GM: `actor.update({ flags.character-goals })`.
-- Non-owner adding a complication: `module.json` `socket: true`. The client emits `module.character-goals`; a connected GM re-runs `applyMutation` **as the requester** and persists. If no GM is online, the UI errors.
+- Non-owner adding a complication: `socket: true`. A connected GM re-runs `applyMutation` **as the requester**.
 
-No world documents for MVP. No Alexandrian Nodes features.
+No world documents. No Alexandrian Nodes features. No faction clocks.
 
-## Module layout
+## Resolved v1 policy (Heimerdinger handoff)
 
-```
-module.json
-README.md
-scripts/module.mjs
-scripts/data.mjs      // normalize, CRUD, visibility helpers
-scripts/sheet.mjs     // sheet page render + listeners
-styles/character-goals.css
-lang/en.json
-templates/goals-page.hbs
-tests/*.mjs           // data helpers offline
-```
+1. **GM always sees** every node, including private ones.
+2. **Max 2** short children per parent — enforced in `applyMutation`, not only in the UI. Normalize does not delete extras already stored.
+3. **System-agnostic** Actor sheet tab. WWN is the first-class `PARTS`/`TABS` target; other systems use the same injection or DOM fallback.
+4. Foundry **v14**.
+5. Optional later fields: failure stakes / success vision — README stub only.
+6. Repo stays **`Attritable/character-goals`**. GitHub before Hostinger.
 
-## Install
+## Deviations from the original Azir sketch
 
-GitHub `Attritable/character-goals` → Ornn copies to `Data/modules/character-goals/` → Orianna enables on wwn only.
+1. **No formal “sheet page registration” API.** v14 path is mutating `PARTS` / `TABS` and wrapping `_preparePartContext`.
+2. **Socket relay** for cross-actor complications.
+3. **Character-like actor types only** (not WWN faction / starship sheets).
+4. **Linked item `img`** stored with `uuid` / `name`.
+5. **Short-term cap is hard** (research + Heimerdinger acceptance), not a hint.
+6. **Complications hold their own `linkedItems`** (handoff: drop onto a goal or complication).
+7. **`type` + optional `createdAt`** added so nodes match the handoff model without flattening the tree.
 
-## Deviations from the original sketch
+## Research
 
-1. **No formal “sheet page registration” API.** v14’s supported extension point is mutating the target sheet class `PARTS` / `TABS` and wrapping `_preparePartContext`. `renderActorSheet` alone is insufficient for ApplicationV2 (hook name is `renderActorSheetV2`, second argument is an `HTMLElement`, not jQuery).
-2. **Socket relay is required** for “any player adds a complication on another PC.” Non-owners cannot `actor.update` flags. The sketch allowed “socket or just actor.update”; both are implemented, with socket used only when the requester cannot update the Actor.
-3. **Character-like actor types only.** WWN also has faction / starship / project / power-armor sheets. Goals inject on `character` (and aliases), not those.
-4. **Linked item `img`** stored alongside `uuid` / `name` so the GM chip can use Foundry’s default item icon without extra lookups.
-5. **Approve/reject UI** uses Foundry `data-tooltip` plus `title` so hover works even when the system tooltip manager is not attached to the injected page.
-
-## Research (incoming)
-
-Vel'Koz Ficelle / *Game Master’s Handbook to Proactive Roleplay* research is **not** in this slice. Fold those patterns into `scripts/data.mjs` + the Goals page when they land. Do not grow Alexandrian Nodes here.
+Fishel proactive-goal shell (secondary sources only; no book excerpts): players invent measurable goals with stakes; 1–2 short steps serve a longer goal. Complications on other PCs, default-hidden visibility, eyeball publish, and approve/reject are table process for this sheet — not named book mechanics. Do not grow Alexandrian Nodes here.
