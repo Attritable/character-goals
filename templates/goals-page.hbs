@@ -95,6 +95,24 @@
                   {{/if}}
                 </span>
               </div>
+              {{#if ../../../isGM}}
+              <div class="character-goals-links" data-drop-node="{{this.id}}">
+                <p class="hint">{{../../../labels.dropHint}}</p>
+                {{#if this.linkedItems.length}}
+                <ul class="character-goals-link-list">
+                  {{#each this.linkedItems}}
+                  <li class="character-goals-link" data-uuid="{{this.uuid}}">
+                    <a class="content-link" data-link data-uuid="{{this.uuid}}" data-type="Item" draggable="true">
+                      <img class="character-goals-item-icon" src="{{#if this.img}}{{this.img}}{{else}}icons/svg/item-bag.svg{{/if}}" alt="">
+                      <span>{{#if this.name}}{{this.name}}{{else}}{{this.uuid}}{{/if}}</span>
+                    </a>
+                    <button type="button" data-cg-action="removeLinkedItem" data-node-id="{{../id}}" data-uuid="{{this.uuid}}"><i class="fas fa-times"></i></button>
+                  </li>
+                  {{/each}}
+                </ul>
+                {{/if}}
+              </div>
+              {{/if}}
             </li>
             {{/each}}
           </ol>
@@ -133,9 +151,9 @@
       <button type="button" class="character-goals-inline-add" data-cg-action="addShortGoal" data-node-id="{{this.id}}">
         <i class="fas fa-plus"></i> {{../labels.addShortGoal}}
       </button>
-      {{/if}}
-      {{#if this.encourageAnotherShort}}
       <p class="hint character-goals-hint">{{../labels.shortGoalHint}}</p>
+      {{else if this.atShortGoalCap}}
+      <p class="hint character-goals-hint">{{../labels.shortGoalCap}}</p>
       {{/if}}
 
       <ol class="character-goals-complications">
@@ -160,6 +178,24 @@
               {{/if}}
             </span>
           </div>
+          {{#if ../../isGM}}
+          <div class="character-goals-links" data-drop-node="{{this.id}}">
+            <p class="hint">{{../../labels.dropHint}}</p>
+            {{#if this.linkedItems.length}}
+            <ul class="character-goals-link-list">
+              {{#each this.linkedItems}}
+              <li class="character-goals-link" data-uuid="{{this.uuid}}">
+                <a class="content-link" data-link data-uuid="{{this.uuid}}" data-type="Item" draggable="true">
+                  <img class="character-goals-item-icon" src="{{#if this.img}}{{this.img}}{{else}}icons/svg/item-bag.svg{{/if}}" alt="">
+                  <span>{{#if this.name}}{{this.name}}{{else}}{{this.uuid}}{{/if}}</span>
+                </a>
+                <button type="button" data-cg-action="removeLinkedItem" data-node-id="{{../id}}" data-uuid="{{this.uuid}}"><i class="fas fa-times"></i></button>
+              </li>
+              {{/each}}
+            </ul>
+            {{/if}}
+          </div>
+          {{/if}}
         </li>
         {{/each}}
       </ol>
