@@ -2,15 +2,24 @@
  * Character Goals — flag shape, CRUD, and permission helpers.
  * Pure ESM: no Foundry runtime required (offline tests import this file).
  *
- * Extension point: Vel'Koz Ficelle / "Game Master's Handbook to Proactive
- * Roleplay" patterns will be folded in here later. Do not invent those
- * structures yet — keep this model a thin goals / short-goals / complications tree.
+ * Hierarchy follows the Fishel proactive-goal shell (players invent measurable
+ * long/mid goals, then 1–2 short steps). Complications, approve/reject, and
+ * default-hidden visibility are table process — not book mechanics.
+ * Optional later fields: failure stakes, “what success looks like”.
  */
 
 export const MODULE_ID = "character-goals";
 export const TAB_ID = "character-goals";
 export const FLAG_KEY = MODULE_ID;
-export const SHORT_GOAL_HINT_MAX = 2;
+export const MAX_SHORT_GOALS = 2;
+/** @deprecated use MAX_SHORT_GOALS */
+export const SHORT_GOAL_HINT_MAX = MAX_SHORT_GOALS;
+
+export const NODE_TYPE = Object.freeze({
+  goal: "goal_longmid",
+  shortGoal: "goal_short",
+  complication: "complication",
+});
 
 export const APPROVAL = Object.freeze({
   pending: "pending",
@@ -134,20 +143,29 @@ export function createLinkedItem({ uuid, name, img } = {}) {
   return item;
 }
 
+function nowIso() {
+  return new Date().toISOString();
+}
+
 export function createComplication({ text = "", userId } = {}) {
   return {
     id: createId(),
+    type: NODE_TYPE.complication,
     text: String(text ?? ""),
     visibility: createVisibility(userId),
+    createdAt: nowIso(),
+    linkedItems: [],
   };
 }
 
 export function createShortGoal({ text = "", userId } = {}) {
   return {
     id: createId(),
+    type: NODE_TYPE.shortGoal,
     text: String(text ?? ""),
     approval: APPROVAL.pending,
     visibility: createVisibility(userId),
+    createdAt: nowIso(),
     complications: [],
     linkedItems: [],
   };
@@ -156,9 +174,11 @@ export function createShortGoal({ text = "", userId } = {}) {
 export function createGoal({ text = "", userId } = {}) {
   return {
     id: createId(),
+    type: NODE_TYPE.goal,
     text: String(text ?? ""),
     approval: APPROVAL.pending,
     visibility: createVisibility(userId),
+    createdAt: nowIso(),
     shortGoals: [],
     complications: [],
     linkedItems: [],
@@ -182,19 +202,31 @@ function normalizeLinkedItem(raw) {
   return createLinkedItem(raw);
 }
 
+function normalizeCreatedAt(raw) {
+  return typeof raw === "string" && raw ? raw : undefined;
+}
+
 function normalizeComplication(raw) {
   if (!raw || typeof raw !== "object") return null;
-  return {
+  const node = {
     id: typeof raw.id === "string" && raw.id ? raw.id : createId(),
+    type: NODE_TYPE.complication,
     text: String(raw.text ?? ""),
     visibility: normalizeVisibility(raw.visibility),
+    linkedItems: Array.isArray(raw.linkedItems)
+      ? raw.linkedItems.map(normalizeLinkedItem).filter(Boolean)
+      : [],
   };
+  const createdAt = normalizeCreatedAt(raw.createdAt);
+  if (createdAt) node.createdAt = createdAt;
+  return node;
 }
 
 function normalizeShortGoal(raw) {
   if (!raw || typeof raw !== "object") return null;
   const node = {
     id: typeof raw.id === "string" && raw.id ? raw.id : createId(),
+    type: NODE_TYPE.shortGoal,
     text: String(raw.text ?? ""),
     approval: normalizeApproval(raw.approval),
     visibility: normalizeVisibility(raw.visibility),
@@ -205,6 +237,8 @@ function normalizeShortGoal(raw) {
       ? raw.linkedItems.map(normalizeLinkedItem).filter(Boolean)
       : [],
   };
+  const createdAt = normalizeCreatedAt(raw.createdAt);
+  if (createdAt) node.createdAt = createdAt;
   if (typeof raw.rejectReason === "string" && raw.rejectReason) node.rejectReason = raw.rejectReason;
   return node;
 }
@@ -213,6 +247,7 @@ function normalizeGoal(raw) {
   if (!raw || typeof raw !== "object") return null;
   const node = {
     id: typeof raw.id === "string" && raw.id ? raw.id : createId(),
+    type: NODE_TYPE.goal,
     text: String(raw.text ?? ""),
     approval: normalizeApproval(raw.approval),
     visibility: normalizeVisibility(raw.visibility),
@@ -226,6 +261,8 @@ function normalizeGoal(raw) {
       ? raw.linkedItems.map(normalizeLinkedItem).filter(Boolean)
       : [],
   };
+  const createdAt = normalizeCreatedAt(raw.createdAt);
+  if (createdAt) node.createdAt = createdAt;
   if (typeof raw.rejectReason === "string" && raw.rejectReason) node.rejectReason = raw.rejectReason;
   return node;
 }
@@ -324,6 +361,9 @@ export function applyMutation(flag, mutation, ctx = {}) {
       if (!found || found.kind !== NODE_KIND.goal) return fail("Goal not found");
       const text = String(mutation.text ?? "").trim();
       if (!text) return fail("Short-term goal text is required");
+      if (found.node.shortGoals.length >= MAX_SHORT_GOALS) {
+        return fail(`At most ${MAX_SHORT_GOALS} short-term goals per parent`);
+      }
       found.node.shortGoals.push(createShortGoal({ text, userId }));
       return ok(next);
     }
@@ -368,6 +408,9 @@ export function applyMutation(flag, mutation, ctx = {}) {
       const action = mutation.approval === APPROVAL.rejected ? ACTIONS.REJECT : ACTIONS.APPROVE;
       const denied = requireAuth(ctx, action, found.node);
       if (denied) return denied;
+      if (mutation.approval === APPROVAL.rejected && !String(mutation.rejectReason ?? "").trim()) {
+        return fail("Reject reason is required");
+      }
       applyApproval(found.node, mutation.approval, mutation.rejectReason);
       return ok(next);
     }
@@ -382,8 +425,8 @@ export function applyMutation(flag, mutation, ctx = {}) {
     case "addLinkedItem": {
       const found = findNode(next, mutation.parentId);
       if (!found) return fail("Parent not found");
-      const parent = found.kind === NODE_KIND.complication ? found.parent : found.node;
-      if (!parent || !Array.isArray(parent.linkedItems)) return fail("Parent cannot hold item links");
+      const parent = found.node;
+      if (!Array.isArray(parent.linkedItems)) parent.linkedItems = [];
       const denied = requireAuth(ctx, ACTIONS.LINK_ITEM, parent);
       if (denied) return denied;
       const item = createLinkedItem(mutation.item ?? mutation);
@@ -396,8 +439,8 @@ export function applyMutation(flag, mutation, ctx = {}) {
     case "removeLinkedItem": {
       const found = findNode(next, mutation.parentId);
       if (!found) return fail("Parent not found");
-      const parent = found.kind === NODE_KIND.complication ? found.parent : found.node;
-      if (!parent || !Array.isArray(parent.linkedItems)) return fail("Parent cannot hold item links");
+      const parent = found.node;
+      if (!Array.isArray(parent.linkedItems)) parent.linkedItems = [];
       const denied = requireAuth(ctx, ACTIONS.LINK_ITEM, parent);
       if (denied) return denied;
       parent.linkedItems = parent.linkedItems.filter((item) => item.uuid !== mutation.uuid);
@@ -442,19 +485,28 @@ export function filterFlagForViewer(flag, user, actor) {
       .map((row) => {
         const complications = row.complications
           .filter((item) => canSeeNode(item, user))
-          .map((item) => decorateNode(item, user, { actor, kind: NODE_KIND.complication }));
+          .map((item) => decorateNode(item, user, {
+            actor,
+            kind: NODE_KIND.complication,
+            linkedItems: showLinks ? item.linkedItems ?? [] : [],
+          }));
         return decorateNode(row, user, {
           actor,
           kind: NODE_KIND.shortGoal,
           complications,
           linkedItems: showLinks ? row.linkedItems : [],
           canAddComplication: authorize(ACTIONS.ADD_COMPLICATION, { user, actor }),
-          shortOfHint: row.shortGoals ? false : row.complications.length === 0,
         });
       });
     const complications = goal.complications
       .filter((item) => canSeeNode(item, user))
-      .map((item) => decorateNode(item, user, { actor, kind: NODE_KIND.complication }));
+      .map((item) => decorateNode(item, user, {
+        actor,
+        kind: NODE_KIND.complication,
+        linkedItems: showLinks ? item.linkedItems ?? [] : [],
+      }));
+    const storedShortCount = goal.shortGoals.length;
+    const atShortGoalCap = storedShortCount >= MAX_SHORT_GOALS;
     goals.push(
       decorateNode(goal, user, {
         actor,
@@ -462,10 +514,11 @@ export function filterFlagForViewer(flag, user, actor) {
         shortGoals,
         complications,
         linkedItems: showLinks ? goal.linkedItems : [],
-        canAddShortGoal: authorize(ACTIONS.ADD_SHORT_GOAL, { user, actor, node: goal }),
+        canAddShortGoal: authorize(ACTIONS.ADD_SHORT_GOAL, { user, actor, node: goal }) && !atShortGoalCap,
         canAddComplication: authorize(ACTIONS.ADD_COMPLICATION, { user, actor }),
-        shortGoalCount: shortGoals.length,
-        encourageAnotherShort: shortGoals.length < SHORT_GOAL_HINT_MAX,
+        shortGoalCount: storedShortCount,
+        atShortGoalCap,
+        encourageAnotherShort: !atShortGoalCap,
       }),
     );
   }
