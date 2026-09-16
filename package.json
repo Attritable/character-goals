@@ -1,0 +1,11 @@
+{
+  "name": "character-goals",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Foundry VTT v14 character sheet page for goals and complications",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "pack": "node tools/pack.mjs"
+  }
+}
